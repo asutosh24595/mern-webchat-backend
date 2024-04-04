@@ -24,23 +24,20 @@ const io = socketIo(server, {
   },
 });
 
-const users = {}; // To keep track of online users
+const users = {}; 
 
 io.on("connection", (socket) => {
-  // Ask for username on connection
   socket.on("username", (username) => {
     users[socket.id] = username;
     io.emit("is_online", { username, status: "connected" });
     console.log("User connected:", username);
   });
 
-  // Listen for messages from clients
   socket.on("chat_message", ({ text, username }) => {
     console.log("Received chat message:", { text, username });
-    io.emit("chat_message", { text, username }); // Broadcast the message to all clients
+    io.emit("chat_message", { text, username }); 
   });
 
-  // Handle client disconnection
   socket.on("disconnect", () => {
     const username = users[socket.id];
     delete users[socket.id];
@@ -72,16 +69,15 @@ const client = nodemailer.createTransport({
   },
 });
 
-const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-const generateOtp = async () =>{
-  const hashedOtp = await bcrypt.hash(otp, 10); // Hash the OTP using bcrypt
-  return hashedOtp;
-}
-
 app.post("/signup", async (req, res) => {
   const newUser = new User(req.body);
   try {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    const generateOtp = async () => {
+      const hashedOtp = await bcrypt.hash(otp, 10); 
+      return hashedOtp;
+    };
     const hashedOtp = await generateOtp();
     newUser.password = hashedOtp;
     await newUser.save();
@@ -97,11 +93,13 @@ app.post("/signup", async (req, res) => {
       data: {
         newUser,
       },
-      message: "OTP sent successfully",
+      message: "OTP sent successfully to email",
     });
   } catch (err) {
     if (err.code === 11000 && err.keyPattern.email) {
       res.status(400).json({ message: "Email is already in use" });
+    } else if (err.code === 11000 && err.keyPattern.phno) {
+      res.status(400).json({ message: "Phone Number is already in use" });
     } else {
       console.error("Error during sign up:", err);
       res.status(500).json({
@@ -113,24 +111,25 @@ app.post("/signup", async (req, res) => {
 });
 
 app.post("/login", async (req, res) => {
-  console.log("Heyyaaaa");
   const { email, password } = req.body;
   try {
-    const user = await User.findOne({ email});
+    const user = await User.findOne({ email });
     console.log(user);
     if (user) {
       const isPasswordValid = await bcrypt.compare(password, user.password);
 
-      if(isPasswordValid){
+      if (isPasswordValid) {
         const token = jwt.sign({ email }, "webchatapp-secret-key", {
           expiresIn: "1h",
         });
         res.status(200).json({ token });
-      }else{
+      } else {
         res.status(401).json({ message: "Invalid Email or Password" });
       }
-    }else{
-      res.status(401).json({ message: "No User found with the given email. Please sign up." });
+    } else {
+      res.status(401).json({
+        message: "No User found with the given email. Please sign up.",
+      });
     }
   } catch (error) {
     console.error("Error during login:", error);
